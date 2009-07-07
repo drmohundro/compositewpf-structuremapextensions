@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,9 +7,12 @@ using Microsoft.Practices.Composite;
 using Microsoft.Practices.Composite.Events;
 using Microsoft.Practices.Composite.Logging;
 using Microsoft.Practices.Composite.Modularity;
+using Microsoft.Practices.Composite.Presentation.Regions.Behaviors;
 using Microsoft.Practices.Composite.Regions;
-using Microsoft.Practices.Composite.Wpf.Regions;
+using Microsoft.Practices.Composite.Presentation.Regions;
+using Microsoft.Practices.ServiceLocation;
 using StructureMap;
+using StructureMap.Exceptions;
 
 namespace CompositeWPFContrib.Composite.StructureMapExtensions
 {
@@ -22,7 +26,9 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
     /// </remarks>
     public abstract class StructureMapBootstrapper
     {
-        private readonly ILoggerFacade _loggerFacade = new TraceLogger();
+        private bool useDefaultConfiguration = true;
+
+        private readonly ILoggerFacade loggerFacade = new TraceLogger();
 
         /// <summary>
         /// Gets the default <see cref="ILoggerFacade"/> for the application.
@@ -30,13 +36,14 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         /// <value>A <see cref="ILoggerFacade"/> instance.</value>
         public ILoggerFacade LoggerFacade
         {
-            get { return _loggerFacade; }
+            get { return loggerFacade; }
         }
 
         /// <summary>
         /// Gets the default <see cref="IContainer"/> for the application.
         /// </summary>
         /// <value>The default <see cref="IContainer"/> instance.</value>
+        [CLSCompliant(false)]
         public IContainer Container { get; private set; }
 
         /// <summary>
@@ -44,22 +51,37 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         /// </summary>
         public void Run()
         {
+            Run(true);
+        }
+
+        public void Run(bool runWithDefaultConfiguration)
+        {
+            useDefaultConfiguration = runWithDefaultConfiguration;
+
             var logger = LoggerFacade;
+            if (logger == null)
+                throw new InvalidOperationException("NullLoggerException");
 
             logger.Log("Creating StructureMap container", Category.Debug, Priority.Low);
             Container = CreateContainer();
+            if (Container == null)
+                throw new InvalidOperationException("NullContainerException");
 
             logger.Log("Configuring container", Category.Debug, Priority.Low);
             ConfigureContainer();
 
             logger.Log("Configuring region adapters", Category.Debug, Priority.Low);
+
             ConfigureRegionAdapterMappings();
+            ConfigureDefaultRegionBehaviors();
+            RegisterFrameworkExceptionTypes();
 
             logger.Log("Creating shell", Category.Debug, Priority.Low);
             var shell = CreateShell();
             if (shell != null)
             {
                 RegionManager.SetRegionManager(shell, Container.GetInstance<IRegionManager>());
+                RegionManager.UpdateRegions();
             }
 
             logger.Log("Initializing modules", Category.Debug, Priority.Low);
@@ -69,26 +91,78 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         }
 
         /// <summary>
+        /// Configures the <see cref="IRegionBehaviorFactory"/>. This will be the list of default
+        /// behaviors that will be added to a region. 
+        /// </summary>
+        protected virtual IRegionBehaviorFactory ConfigureDefaultRegionBehaviors()
+        {
+            var defaultRegionBehaviorTypesDictionary = Container.TryGetInstance<IRegionBehaviorFactory>();
+
+            if (defaultRegionBehaviorTypesDictionary != null)
+            {
+                defaultRegionBehaviorTypesDictionary.AddIfMissing(AutoPopulateRegionBehavior.BehaviorKey,
+                                                                  typeof(AutoPopulateRegionBehavior));
+
+                defaultRegionBehaviorTypesDictionary.AddIfMissing(BindRegionContextToDependencyObjectBehavior.BehaviorKey,
+                                                                  typeof(BindRegionContextToDependencyObjectBehavior));
+
+                defaultRegionBehaviorTypesDictionary.AddIfMissing(RegionActiveAwareBehavior.BehaviorKey,
+                                                                  typeof(RegionActiveAwareBehavior));
+
+                defaultRegionBehaviorTypesDictionary.AddIfMissing(SyncRegionContextWithHostBehavior.BehaviorKey,
+                                                                  typeof(SyncRegionContextWithHostBehavior));
+
+                defaultRegionBehaviorTypesDictionary.AddIfMissing(RegionManagerRegistrationBehavior.BehaviorKey,
+                                                                  typeof(RegionManagerRegistrationBehavior));
+
+            }
+            return defaultRegionBehaviorTypesDictionary;
+
+        }
+
+        /// <summary>
+        /// Registers in the <see cref="IContainer"/> the <see cref="Type"/> of the Exceptions
+        /// that are not considered root exceptions by the <see cref="ExceptionExtensions"/>.
+        /// </summary>
+        protected virtual void RegisterFrameworkExceptionTypes()
+        {
+            ExceptionExtensions.RegisterFrameworkExceptionType(
+                typeof(ActivationException));
+
+            ExceptionExtensions.RegisterFrameworkExceptionType(
+                typeof(MissingPluginFamilyException));
+        }
+
+        /// <summary>
         /// Configures the <see cref="IContainer"/>. May be overwritten in a derived class to add specific
         /// type mappings required by the application.
         /// </summary>
         protected virtual void ConfigureContainer()
         {
             Container.Configure(reg =>
-                                    {
-                                        reg.ForRequestedType<ILoggerFacade>().TheDefault.IsThis(LoggerFacade);
-                                        reg.ForRequestedType<IContainer>().TheDefault.IsThis(Container);
+                {
+                    reg.ForRequestedType<ILoggerFacade>().TheDefault.IsThis(LoggerFacade);
+                    reg.ForRequestedType<IContainer>().TheDefault.IsThis(Container);
 
-                                        var moduleEnumerator = GetModuleEnumerator();
-                                        if (moduleEnumerator != null)
-                                            reg.ForRequestedType<IModuleEnumerator>().TheDefault.IsThis(moduleEnumerator);
+                    var catalog = GetModuleCatalog();
+                    if (catalog != null)
+                        reg.BuildInstancesOf<IModuleCatalog>()
+                            .TheDefault.IsThis(catalog);
 
-                                        RegisterTypeIfMissing<IContainerFacade, StructureMapContainerAdapter>(true);
-                                        RegisterTypeIfMissing<IEventAggregator, EventAggregator>(true);
-                                        RegisterTypeIfMissing<RegionAdapterMappings, RegionAdapterMappings>(true);
-                                        RegisterTypeIfMissing<IRegionManager, RegionManager>(true);
-                                        RegisterTypeIfMissing<IModuleLoader, ModuleLoader>(true);
-                                    });
+                    if (useDefaultConfiguration)
+                    {
+                        RegisterTypeIfMissing<IServiceLocator, StructureMapServiceLocator>(true);
+                        RegisterTypeIfMissing<IModuleInitializer, ModuleInitializer>(true);
+                        RegisterTypeIfMissing<IModuleManager, ModuleManager>(true);
+                        RegisterTypeIfMissing<RegionAdapterMappings, RegionAdapterMappings>(true);
+                        RegisterTypeIfMissing<IRegionManager, RegionManager>(true);
+                        RegisterTypeIfMissing<IEventAggregator, EventAggregator>(true);
+                        RegisterTypeIfMissing<IRegionViewRegistry, RegionViewRegistry>(true);
+                        RegisterTypeIfMissing<IRegionBehaviorFactory, RegionBehaviorFactory>(true);
+
+                        ServiceLocator.SetLocatorProvider(() => Container.GetInstance<IServiceLocator>());
+                    }
+                });
         }
 
         /// <summary>
@@ -102,9 +176,9 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
             var regionAdapterMappings = Container.GetInstance<RegionAdapterMappings>();
             if (regionAdapterMappings != null)
             {
-                regionAdapterMappings.RegisterMapping(typeof (Selector), new SelectorRegionAdapter());
-                regionAdapterMappings.RegisterMapping(typeof (ItemsControl), new ItemsControlRegionAdapter());
-                regionAdapterMappings.RegisterMapping(typeof (ContentControl), new ContentControlRegionAdapter());
+                regionAdapterMappings.RegisterMapping(typeof (Selector), Container.GetInstance<SelectorRegionAdapter>());
+                regionAdapterMappings.RegisterMapping(typeof (ItemsControl), Container.GetInstance<ItemsControlRegionAdapter>());
+                regionAdapterMappings.RegisterMapping(typeof (ContentControl), Container.GetInstance<ContentControlRegionAdapter>());
             }
 
             return regionAdapterMappings;
@@ -112,22 +186,33 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
 
         /// <summary>
         /// Initializes the modules. May be overwritten in a derived class to use custom
-        /// module loading and avoid using an <seealso cref="IModuleLoader"/> and
-        /// <seealso cref="IModuleEnumerator"/>.
+        /// module loading and avoid using an <seealso cref="IModuleManager"/> and
+        /// <seealso cref="IModuleManager"/>.
         /// </summary>
         protected virtual void InitializeModules()
         {
-            var moduleEnumerator = Container.GetInstance<IModuleEnumerator>();
-            var moduleLoader = Container.GetInstance<IModuleLoader>();
+            IModuleManager manager;
 
-            var moduleInfos = moduleEnumerator.GetStartupLoadedModules();
-            moduleLoader.Initialize(moduleInfos);
+            try
+            {
+                manager = Container.GetInstance<IModuleManager>();
+            }
+            catch (StructureMapException ex)
+            {
+                if (ex.Message.Contains("IModuleCatalog"))
+                    throw new InvalidOperationException("Module not found.");
+
+                throw;
+            }
+
+            manager.Run();
         }
 
         /// <summary>
         /// Creates the <see cref="IContainer"/> that will be used as the default container.
         /// </summary>
         /// <returns>A new instance of <see cref="IContainer"/>.</returns>
+        [CLSCompliant(false)]
         protected virtual IContainer CreateContainer()
         {
             return new Container();
@@ -139,32 +224,32 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         /// <remarks>
         /// When using the default initialization behavior, this method must be overwritten by a derived class.
         /// </remarks>
-        /// <returns>An instance of <see cref="IModuleEnumerator"/> that will be used to initialize the modules.</returns>
+        /// <returns>An instance of <see cref="IModuleCatalog"/> that will be used to initialize the modules.</returns>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        protected virtual IModuleEnumerator GetModuleEnumerator()
+        protected virtual IModuleCatalog GetModuleCatalog()
         {
             return null;
         }
 
-        protected void RegisterTypeIfMissing<FROMTYPE, TOTYPE>(bool registerAsSingleton) 
-            where FROMTYPE : class 
-            where TOTYPE : class, FROMTYPE
+        protected void RegisterTypeIfMissing<TFrom, TTo>(bool registerAsSingleton)
+            where TFrom : class
+            where TTo : class, TFrom
         {
             var logger = LoggerFacade;
 
-            if (Container.TryGetInstance<FROMTYPE>() != null)
+            if (Container.TryGetInstance<TFrom>() != null)
             {
-                logger.Log(string.Format("{0} is already registered", typeof(FROMTYPE).Name), 
+                logger.Log(string.Format("{0} is already registered", typeof(TFrom).Name),
                            Category.Debug, Priority.Low);
             }
             else
             {
                 Container.Configure(x =>
-                                        {
-                                            var exp = x.BuildInstancesOf<FROMTYPE>().TheDefaultIsConcreteType<TOTYPE>();
-                                            if (registerAsSingleton)
-                                                exp.AsSingletons();
-                                        });
+                    {
+                        var exp = x.BuildInstancesOf<TFrom>().TheDefaultIsConcreteType<TTo>();
+                        if (registerAsSingleton)
+                            exp.AsSingletons();
+                    });
             }
         }
 
