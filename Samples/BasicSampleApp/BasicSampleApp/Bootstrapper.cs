@@ -6,9 +6,9 @@ namespace BasicSampleApp
 {
     public class Bootstrapper : StructureMapBootstrapper
     {
-        protected override IModuleEnumerator GetModuleEnumerator()
+        protected override IModuleCatalog GetModuleCatalog()
         {
-            return new StaticModuleEnumerator();
+            return new ModuleCatalog();
         }
 
         protected override void ConfigureContainer()
@@ -16,6 +16,7 @@ namespace BasicSampleApp
             Container.Configure(x =>
                 x.BuildInstancesOf<IShellView>().TheDefaultIsConcreteType<Shell>()
             );
+
             base.ConfigureContainer();
         }
 

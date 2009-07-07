@@ -37,15 +37,15 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\src\CompositeWPFContrib.Composite.StructureMapExtensions\bin\Debug\CompositeWPFContrib.Composite.StructureMapExtensions.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Practices.Composite, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Microsoft.Practices.Composite, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\src\CompositeWPFContrib.Composite.StructureMapExtensions\bin\Debug\Microsoft.Practices.Composite.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Practices.Composite.Wpf, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Microsoft.Practices.Composite.Presentation, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\src\CompositeWPFContrib.Composite.StructureMapExtensions\bin\Debug\Microsoft.Practices.Composite.Wpf.dll</HintPath>
+      <HintPath>..\..\..\src\CompositeWPFContrib.Composite.StructureMapExtensions\bin\Debug\Microsoft.Practices.Composite.Presentation.dll</HintPath>
     </Reference>
-    <Reference Include="StructureMap, Version=2.5.1.0, Culture=neutral, PublicKeyToken=e60ad81abae3c223, processorArchitecture=MSIL">
+    <Reference Include="StructureMap, Version=2.5.3.0, Culture=neutral, PublicKeyToken=e60ad81abae3c223, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\src\CompositeWPFContrib.Composite.StructureMapExtensions\bin\Debug\StructureMap.dll</HintPath>
     </Reference>
