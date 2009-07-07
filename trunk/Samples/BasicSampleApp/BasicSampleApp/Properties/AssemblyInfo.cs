@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("BasicSampleApp")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("ABF Freight System, Inc.")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("BasicSampleApp")]
-[assembly: AssemblyCopyright("Copyright © ABF Freight System, Inc. 2008")]
+[assembly: AssemblyCopyright("Copyright © 2008-2009 David Mohundro")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
