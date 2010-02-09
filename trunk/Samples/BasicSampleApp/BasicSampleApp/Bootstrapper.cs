@@ -14,7 +14,7 @@ namespace BasicSampleApp
         protected override void ConfigureContainer()
         {
             Container.Configure(x =>
-                x.BuildInstancesOf<IShellView>().TheDefaultIsConcreteType<Shell>()
+                x.For<IShellView>().Use<Shell>()
             );
 
             base.ConfigureContainer();
