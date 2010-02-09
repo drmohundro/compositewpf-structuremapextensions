@@ -31,9 +31,7 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         protected override object DoGetInstance(Type serviceType, string key)
         {
             if (string.IsNullOrEmpty(key))
-            {
                 return container.GetInstance(serviceType);
-            }
 
             return container.GetInstance(serviceType, key);
         }
@@ -49,9 +47,7 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         protected override IEnumerable<object> DoGetAllInstances(Type serviceType)
         {
             foreach (var obj in container.GetAllInstances(serviceType))
-            {
                 yield return obj;
-            }
         }
     }
 }
