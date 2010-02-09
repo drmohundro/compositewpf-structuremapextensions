@@ -141,13 +141,12 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
         {
             Container.Configure(reg =>
                 {
-                    reg.ForRequestedType<ILoggerFacade>().TheDefault.IsThis(LoggerFacade);
-                    reg.ForRequestedType<IContainer>().TheDefault.IsThis(Container);
+                    reg.For<ILoggerFacade>().Use(LoggerFacade);
+                    reg.For<IContainer>().Use(Container);
 
                     var catalog = GetModuleCatalog();
                     if (catalog != null)
-                        reg.BuildInstancesOf<IModuleCatalog>()
-                            .TheDefault.IsThis(catalog);
+                        reg.For<IModuleCatalog>().Use(catalog);
 
                     if (useDefaultConfiguration)
                     {
@@ -246,9 +245,10 @@ namespace CompositeWPFContrib.Composite.StructureMapExtensions
             {
                 Container.Configure(x =>
                     {
-                        var exp = x.BuildInstancesOf<TFrom>().TheDefaultIsConcreteType<TTo>();
                         if (registerAsSingleton)
-                            exp.AsSingletons();
+                            x.For<TFrom>().Singleton().Use<TTo>();
+                        else
+                            x.For<TFrom>().Use<TTo>();
                     });
             }
         }
