@@ -1,0 +1,16 @@
+# Introduction #
+
+There are three versions of the CompositeWPF StructureMap extensions library: 1.0.0.0, 2.0.0.0 and 2.1.0.0.
+
+
+# Details #
+
+1.0.0.0
+  * This is the version you want if you're still working with the first release of Composite WPF (Prism).
+2.0.0.0
+  * This version targets the 2.0 version of CompositeWPF.
+  * This version targets the 2.5.4 version of StructureMap.
+2.1.0.0
+  * This version targets the 2.0 version of CompositeWPF.
+  * This version targets the 2.6.1 version of StructureMap.
+  * This is the **latest** version.
